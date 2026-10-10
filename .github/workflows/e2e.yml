@@ -1,0 +1,104 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 1 * * *' # nightly full regression + perf
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: 'Tag filter, e.g. @smoke or @regression (empty = everything)'
+        required: false
+        default: ''
+      base_url:
+        description: 'Override BASE_URL'
+        required: false
+        default: 'https://www.demoblaze.com'
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  BASE_URL: ${{ inputs.base_url || 'https://www.demoblaze.com' }}
+  # PRs run the fast smoke slice; pushes, nightly and manual runs default to everything.
+  GREP: ${{ github.event_name == 'pull_request' && '@smoke' || inputs.grep || '' }}
+  TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+  TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
+jobs:
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Run API tests
+        run: npx playwright test --project=api ${GREP:+--grep "$GREP"}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-api
+          path: reports/
+          retention-days: 14
+
+  ui:
+    name: UI tests (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: chromium, browser: chromium }
+          - { project: firefox, browser: firefox }
+          - { project: webkit, browser: webkit }
+          - { project: mobile-chrome, browser: chromium }
+          - { project: mobile-safari, browser: webkit }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run UI tests
+        run: npx playwright test --project=${{ matrix.project }} ${GREP:+--grep "$GREP"}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ matrix.project }}
+          path: reports/
+          retention-days: 14
+
+  perf:
+    name: Performance budgets
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=perf
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-perf
+          path: reports/
+          retention-days: 14
