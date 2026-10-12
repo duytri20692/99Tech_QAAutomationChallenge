@@ -131,9 +131,9 @@ test.describe('Checkout', () => {
     loggedInUser: _user,
     cartPage,
   }) => {
-    test.info().annotations.push({ type: 'issue', description: 'DEF-01: an empty cart can be purchased (Amount: 0 USD)' });
-    // Expected to fail until DEF-01 is fixed; Playwright will flag it as "unexpectedly passed" once the app is fixed.
-    test.fail(true, 'Known defect DEF-01');
+    test.info().annotations.push({ type: 'issue', description: 'DEF-02: an empty cart can be purchased (Amount: 0 USD)' });
+    // Expected to fail until DEF-02 is fixed; Playwright will flag it as "unexpectedly passed" once the app is fixed.
+    test.fail(true, 'Known defect DEF-02');
 
     await cartPage.open();
     await cartPage.expectItemCount(0);
@@ -141,9 +141,8 @@ test.describe('Checkout', () => {
     await modal.fill(validOrder());
     await modal.purchaseButton.click();
 
-    // Generous budget on purpose: 'no-confirmation' also satisfies the
-    // assertion, so a dialog that is merely slow must not be mistaken for the
-    // app rejecting the order.
+    // Long timeout: a timeout also passes the assertion, so a slow dialog
+    // must not look like a rejected order.
     const outcome = await Promise.race([
       modal.confirmation.root.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'order-confirmed' as const),
       page.waitForEvent('dialog', { timeout: 30_000 }).then(async (d) => {

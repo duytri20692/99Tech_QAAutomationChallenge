@@ -1,13 +1,8 @@
 import { Page } from '@playwright/test';
 
 /**
- * Runs `check`, and when it fails reloads the page once and runs it again.
- *
- * DemoBlaze renders every page from XHRs it never re-fires, so a response that
- * was dropped or came back incomplete is permanent for that document: the
- * assertion can poll the DOM for as long as it likes and will keep reading the
- * same stale render. Only a reload asks the server again, which is also what a
- * user would do.
+ * Runs `check`; if it fails, reloads once and runs it again.
+ * DemoBlaze never re-fires its XHRs, so a bad response stays on the page until reload.
  */
 export async function retryAfterReload(page: Page, check: () => Promise<void>, attempts = 2): Promise<void> {
   for (let attempt = 1; attempt <= attempts; attempt++) {

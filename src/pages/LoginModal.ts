@@ -23,18 +23,13 @@ export class LoginModal {
     this.root = page.locator('#logInModal');
     this.usernameInput = page.locator('#loginusername');
     this.passwordInput = page.locator('#loginpassword');
-    // The modal header also carries a button named "Close" (the x), so the
-    // footer buttons are scoped to avoid an ambiguous locator.
+    // Header "x" is also named "Close", so scope to the footer.
     const footer = this.root.locator('.modal-footer');
     this.submitButton = footer.getByRole('button', { name: 'Log in' });
     this.closeButton = footer.getByRole('button', { name: 'Close' });
   }
 
-  /**
-   * The modal already counts as visible while its fade is still running, and
-   * Bootstrap focuses the modal root once that fade ends. Waiting for the focus
-   * to have landed means typing can no longer be interrupted by it.
-   */
+  /** Bootstrap focuses the modal root after the fade, which can eat a fill - wait for that first. */
   async waitUntilOpen(): Promise<void> {
     await expect(this.root).toBeVisible();
     await expect(this.root).toBeFocused();
@@ -48,12 +43,8 @@ export class LoginModal {
   }
 
   /**
-   * Happy path: submit and wait until the modal closes and the page reloads.
-   *
-   * The site never retries a dropped /login, so the modal would otherwise just
-   * sit there until the budget ran out with nothing to say about why. The
-   * submit is repeated once; the fields are not refilled, because the modal
-   * keeps its values when the page has not reloaded.
+   * Happy path: submit, wait for the modal to close and the page to reload.
+   * A dropped /login is submitted again once (fields keep their values).
    */
   async login(username: string, password: string, attempts = 2): Promise<void> {
     await this.fill(username, password);
@@ -61,8 +52,7 @@ export class LoginModal {
     for (let attempt = 1; attempt <= attempts; attempt++) {
       const outcome = await this.submitAndWaitForClose();
       if (outcome.kind === 'closed') return;
-      // An alert means the server answered and turned the login down. Repeating
-      // the same credentials cannot change that answer.
+      // Server said no - retrying won't change that.
       if (outcome.kind === 'rejected') {
         throw new Error(`Login was rejected for "${username}": ${outcome.message}`);
       }
@@ -73,20 +63,14 @@ export class LoginModal {
 
   private async submitAndWaitForClose(): Promise<SubmitOutcome> {
     const { dropped, stop } = watchForDroppedRequest(this.page, LOGIN_REQUEST);
-    // logIn() reports a refused login through an alert and leaves the modal
-    // open. Without this watcher Playwright dismisses that alert unseen and the
-    // real reason is lost behind a modal-still-visible timeout.
+    // A rejected login shows an alert; catch it so the real error is reported.
     const { alerted, stop: stopDialog } = watchForDialog(this.page);
-    // logIn() hides the modal itself and only then calls location.reload(), so a
-    // hidden modal means the credentials were accepted - not that the page that
-    // shows the user as logged in exists yet. The reload is waited for
-    // separately, because on this site a page load can take tens of seconds.
+    // The modal hides first, then the page reloads - wait for both.
     const reloaded = this.page.waitForEvent('domcontentloaded', { timeout: 30_000 });
-    // The modal hides from the /login callback, which can be slow under load.
     const closed = expect(this.root)
       .toBeHidden({ timeout: 30_000 })
       .then((): SubmitOutcome => ({ kind: 'closed' }));
-    // Keep the rejections attached: the race can end on another promise first.
+    // Avoid unhandled rejections if the race ends on another promise.
     reloaded.catch(() => {});
     closed.catch(() => {});
 

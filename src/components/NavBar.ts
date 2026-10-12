@@ -35,26 +35,17 @@ export class NavBar {
   }
 
   /**
-   * Bootstrap opens these modals from its data-toggle handler, which is only
-   * bound once bootstrap.js has run. Right after a page load a click can land
-   * before that and is then silently lost, so it is retried until the modal
-   * really is open.
-   *
-   * The link is a *toggle*: clicking it again while the modal is open closes it.
-   * A retry therefore only clicks from the closed state, and uses Bootstrap's
-   * own `show` class rather than visibility, which is still true during the
-   * closing animation and would let a retry mistake a closing modal for an open
-   * one.
+   * A click right after page load can be lost (bootstrap.js not bound yet), so
+   * retry until the modal opens. The link is a toggle, so only click when the
+   * modal is closed - checked via the `show` class, since visibility stays true
+   * during the closing animation.
    */
   private async openModal(link: Locator, dialog: Locator): Promise<void> {
     await this.ensureExpanded(link);
     await expect(async () => {
       if (!(await this.isOpen(dialog))) await link.click();
       await expect(dialog).toHaveClass(/\bshow\b/, { timeout: 2_000 });
-      // The budget covers a browser that has gone slow, not just a lost click:
-      // WebKit under load has been measured stalling for tens of seconds, and
-      // 15s was not enough to open a modal during one of those stalls.
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 30_000 }); // WebKit under load can stall >15s
   }
 
   private async isOpen(dialog: Locator): Promise<boolean> {
@@ -69,12 +60,7 @@ export class NavBar {
     await this.openModal(this.signUpLink, this.signUpDialog);
   }
 
-  /**
-   * Cart rows come from the /viewcart XHR, which the site never retries itself,
-   * so a dropped call leaves the cart looking empty for good. The waiter is
-   * registered before the click and the page reloaded once if nothing arrives —
-   * the same protection CartPage.open() gets from BasePage.
-   */
+  /** Waits for /viewcart; reloads once if it never arrives (site doesn't retry it). */
   async openCart(): Promise<void> {
     await this.ensureExpanded(this.cartLink);
     const rowsRendered = waitForResponse(this.page, isViewCartResponse);
@@ -104,12 +90,7 @@ export class NavBar {
     await expect(this.signUpLink).toHaveCSS('display', 'none');
   }
 
-  /**
-   * The welcome name is filled by the POST /check that every page load fires
-   * from the cookie token. That call has no error handler and the site never
-   * retries it, so a dropped one leaves the navbar looking logged out for good,
-   * however long the assertion waits. The page is reloaded once instead.
-   */
+  /** Welcome name comes from POST /check, which the site never retries - reload once if missing. */
   private async expectWelcomeName(username: string): Promise<void> {
     await retryAfterReload(this.page, () => expect(this.welcomeUser).toHaveText(`Welcome ${username}`));
   }

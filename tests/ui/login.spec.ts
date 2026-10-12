@@ -3,7 +3,7 @@ import { Messages } from '../../src/data/messages';
 import { Credentials, MaliciousInput, veryLongUsername } from '../../src/data/testData';
 
 /**
- * Login feature — see docs/DemoBlaze_Test_Cases.xlsx, sheet "Login" (TC_LOGIN_*).
+ * Login feature - see docs/DemoBlaze_Test_Cases.xlsx, sheet "Login" (TC_LOGIN_*).
  */
 test.describe('Login', () => {
   test.beforeEach(async ({ homePage }) => {

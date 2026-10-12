@@ -43,13 +43,9 @@ export default defineConfig({
     { name: 'mobile-chrome', testDir: './tests/ui', use: { ...devices['Pixel 7'] } },
     { name: 'mobile-safari', testDir: './tests/ui', use: { ...devices['iPhone 14'] } },
     { name: 'api', testDir: './tests/api', use: { baseURL: env.apiUrl } },
-    // The budgets measure the machine, so anything running beside them
-    // corrupts the number: a page load measured at 15.8s against an 8s budget
-    // turned out to be the suite's own load, not the site. Depending on every
-    // other project makes this one run last, by itself, inside the same run.
-    // Playwright skips a project whose dependency failed, so a genuinely broken
-    // functional suite skips the budgets - which is the right order of concern.
-    // `--no-deps` runs this project on its own (see `npm run test:perf`).
+    // Runs last so the suite's own load doesn't skew the numbers (a page
+    // load hit 15.8s vs an 8s budget when it ran alongside the UI tests).
+    // If a dependency fails, perf is skipped. `npm run test:perf` runs it alone.
     {
       name: 'perf',
       testDir: './tests/perf',

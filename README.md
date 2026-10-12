@@ -8,6 +8,8 @@ Playwright + TypeScript framework for **https://www.demoblaze.com**, covering th
 | Framework + demo scripts | this repository |
 | CI/CD | [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml), [`Jenkinsfile`](Jenkinsfile) |
 
+> Built with help from AI coding tools for some parts. Test design, debugging decisions and final review are mine.
+
 ---
 
 ## 1. Quick start
@@ -43,7 +45,6 @@ No account setup is needed: each test registers its own unique user through the 
 | `npm run test:mobile` | UI tests on Pixel 7 and iPhone 14 emulation |
 | `npm run test:api` | REST API tests (no browser) |
 | `npm run test:perf` | Performance budget checks, on their own (`--no-deps`) |
-| `npm run test:single` | The whole suite in one pass, one worker count (no staging) |
 | `npm run test:headed` / `test:debug` | Headed / step-through debugging on Chromium |
 | `npx playwright test --project=firefox --grep @smoke` | Any project × tag combination |
 | `npm run report` | Open the HTML report |
@@ -102,26 +103,26 @@ tests  ->  fixtures  ->  page objects / components  ->  Playwright
 
 **Test isolation.** Every cart test gets its own freshly registered user, so carts never leak between tests and tests can run fully in parallel and in any order.
 
-**One run, with the budgets last.** The suite is a single `playwright test` run, so the terminal shows `Running 161 tests` and one report comes out of it. The `perf` project declares every other project as a dependency, which makes Playwright run it at the end, by itself: the budgets measure the machine, and a page load timed at 15.8s against an 8s budget turned out to be the suite's own load rather than the site. The trade is that Playwright skips a project whose dependency failed, so a genuinely broken functional suite skips the budgets — the right order of concern. `npm run test:perf` uses `--no-deps` to run them alone. A dependency is always run in full, whatever the filter, so a filtered run such as `npm test -- --grep @smoke` would otherwise drag the whole suite along behind it; [scripts/run.js](scripts/run.js) drops the dependency whenever a filter is given, because a filtered run is not a measurement run.
+**One run, perf last.** Everything runs in one `playwright test` run with one report. The `perf` project depends on all other projects, so it runs at the end on its own and the suite's load doesn't skew the numbers (details in [playwright.config.ts](playwright.config.ts)). If a functional project fails, perf is skipped. `npm run test:perf` runs perf alone; filtered runs like `npm test -- --grep @smoke` skip the dependency ([scripts/run.js](scripts/run.js)).
 
-**One worker count, chosen for the browser that degrades first.** WebKit on Windows slows down sharply when several of its browsers run at once: over 5 runs at 8 workers, mobile-safari's p99 was 41.5s against a p90 of 21s and 8 tests exceeded 30s, which is what produced the flaky clusters. It is clean at 6. Medians barely move with the worker count, so the cost of staying low is wall-clock time, not per-test speed. `WORKERS` overrides it.
+**6 workers by default.** WebKit on Windows gets flaky above that (see [config/env.ts](config/env.ts)). `WORKERS` overrides it.
 
-**`npm test` holds a single-run lock** ([scripts/run-lock.js](scripts/run-lock.js)). Two runs share `reports/`, and every `playwright test` empties its output directory on start, so the second deletes the first one's artifacts mid-run — which surfaces as a storm of failures that are not real. A lock left by a run that was killed is taken over, never respected, so nothing has to be cleaned by hand. A suite running in a *different* checkout cannot corrupt this one, but it still competes for the machine and widens the slow tail.
+**`npm test` uses a single-run lock** ([scripts/run-lock.js](scripts/run-lock.js)), so two runs can't delete each other's files in `reports/`. A lock left by a killed run is taken over automatically.
 
 **Handling DemoBlaze specifics.**
-- Most outcomes are native `alert()` dialogs that fire after an XHR. `utils/dialog.ts` arms the listener *before* the click and returns the alert text for assertions. It also watches the XHR itself, so a dropped call is reported as such instead of as a bare dialog timeout.
-- Bootstrap focuses a modal's own root when its fade ends, which silently swallows a `fill()` that is in flight. Modals wait for that focus before typing, and `utils/form.ts` re-reads every field it fills.
+- Most results are native `alert()` dialogs fired after an XHR. `utils/dialog.ts` sets up the listener before the click and returns the alert text. If the XHR fails, it reports that instead of a plain timeout.
+- Bootstrap focuses the modal root when its fade ends, which can swallow a `fill()`. Modals wait for that focus, and `utils/form.ts` re-checks every value it fills.
 - Cart rows load asynchronously; assertions use Playwright's retrying `expect` instead of fixed sleeps.
-- The site never retries its own XHRs, so a request the backend drops is final: the page stays empty, the modal never closes, the alert never comes, the navbar keeps looking logged out, the cart looks short. Polling the DOM cannot help, because the DOM was rendered once from that one response — only a reload asks again, which is what `utils/reload.ts` does for the product list, the welcome name and the cart rows. Navigation (`BasePage`), opening the cart and the welcome name (`NavBar`), registering a user (`DemoblazeApiClient`) and the XHR-backed actions (`LoginModal`, `ProductPage`) each repeat once instead of waiting longer. Only a request that never reached the server is repeated, so an action can never be applied twice.
-- The nav links that open the modals are Bootstrap *toggles*, so a retried click closes what the first click opened. `NavBar` only clicks from the closed state, and reads Bootstrap's `show` class rather than visibility, which stays true throughout the closing animation.
+- The site never retries its own XHRs, so a dropped request leaves the page broken until reload. `utils/reload.ts` reloads once for the product list, welcome name and cart rows. Navigation, login, add to cart and user signup are retried once, but only when the request never reached the server, so nothing is applied twice.
+- The nav links are Bootstrap toggles, so a second click closes the modal. `NavBar` only clicks when the modal is closed (checked via the `show` class).
 - On mobile viewports the navbar collapses; `NavBar` opens the hamburger menu when needed, so the same tests run on desktop and mobile.
 - Prices are read from the product page at runtime instead of being hard-coded, so price changes don't break tests.
 
 **Data-driven negative tests.** Login and order-form validation cases are tables of inputs and expected alerts, so adding a case is one line.
 
-**Known defects stay visible without breaking the build.** `TC_CART_026` (purchase with an empty cart) is marked with `test.fail()` and an `issue` annotation. It passes while the bug exists, and Playwright reports it as "unexpectedly passed" once the bug is fixed, prompting removal of the marker.
+**Known defects stay visible without breaking the build.** `TC_CART_005` (duplicate rows, DEF-01) and `TC_CART_026` (purchase with an empty cart, DEF-02) are marked with `test.fail()` and an `issue` annotation. Each passes while its bug exists, and Playwright reports it as "unexpectedly passed" once the bug is fixed, prompting removal of the marker.
 
-**Traceability.** Test titles start with the test case ID from the workbook (e.g. `TC_LOGIN_008`), and the workbook's *Automation Reference* column points back to the spec.
+**Traceability.** Test titles start with the test case ID from the workbook (e.g. `TC_LOGIN_008`), so a case in the workbook can be found in the specs by searching its ID.
 
 ---
 
@@ -142,7 +143,7 @@ tests  ->  fixtures  ->  page objects / components  ->  Playwright
 
 ## 4. Demo scenario
 
-`tests/ui/checkout.spec.ts › TC_CART_020` runs the requested flow as readable `test.step`s:
+`tests/ui/checkout.spec.ts › TC_CART_020` runs the demo flow as `test.step`s:
 
 1. **Log in with valid credentials** and verify `Welcome <username>`.
 2. **Open "Samsung galaxy s6" and add it to the cart**, verifying the title and the "Product added" alert.

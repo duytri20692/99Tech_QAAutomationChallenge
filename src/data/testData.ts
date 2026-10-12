@@ -39,10 +39,8 @@ export const MaliciousInput = {
 } as const;
 
 /**
- * A 300-character username that is still unregistered. DemoBlaze has one public
- * user table, so a fixed string such as 'a'.repeat(300) has long been taken and
- * answers "Wrong password." instead of "User does not exist.". The unique part
- * goes first, so the name stays unique even if the backend truncates it.
+ * Unregistered 300-char username. A fixed 'a'.repeat(300) is already taken on
+ * the shared site. Unique part goes first in case the backend truncates.
  */
 export const veryLongUsername = (length = 300): string => {
   const unique = suffix();

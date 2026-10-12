@@ -22,11 +22,7 @@ export class CartPage extends BasePage {
     this.placeOrderButton = page.getByRole('button', { name: 'Place Order' });
   }
 
-  /**
-   * Cart rows are rendered by the /viewcart XHR, so the waiter is registered
-   * before the navigation starts. 'networkidle' is unusable here: cart.html
-   * streams an HLS video that keeps a request open for the whole session.
-   */
+  /** Waits for /viewcart (renders the rows). Can't use 'networkidle', the HLS video never idles. */
   protected override async loadOnce(url: string): Promise<void> {
     const rowsRendered = waitForResponse(this.page, isViewCartResponse);
     await super.loadOnce(url);
@@ -42,10 +38,8 @@ export class CartPage extends BasePage {
   }
 
   /**
-   * Rows are rendered once, by the /viewcart call the page load fires, so
-   * polling the DOM can never see a cart that changed after that call - and
-   * DemoBlaze does occasionally answer /viewcart without an item it has just
-   * accepted. Reloading re-asks the server, which is also what a user would do.
+   * Rows render once per page load, and /viewcart sometimes misses an item that
+   * was just added. Polling the DOM won't help, so reload once and re-check.
    */
   async expectItemCount(count: number): Promise<void> {
     await retryAfterReload(this.page, () => expect(this.rows).toHaveCount(count));
@@ -76,17 +70,12 @@ export class CartPage extends BasePage {
   }
 
   /**
-   * Deletes one row for the given product and waits for the row count to drop.
-   * DemoBlaze deletes through a POST and then reloads the page, so the row only
-   * disappears after that reload and its /viewcart call - hence the budget.
+   * Deletes one row and waits for the count to drop. The site reloads the page
+   * after the delete, so this can take a while; reload again if /viewcart is stale.
    */
   async deleteItem(title: string): Promise<void> {
     const before = await this.rows.count();
     await this.row(title).first().getByRole('link', { name: 'Delete' }).click();
-    // That reload re-renders the rows from one /viewcart answer, and DemoBlaze
-    // sometimes answers it with a cart that is emptier than it should be. The
-    // count is therefore re-asked rather than polled: polling the DOM would
-    // keep reading the same stale render.
     await retryAfterReload(this.page, () => expect(this.rows).toHaveCount(before - 1, { timeout: 30_000 }));
   }
 

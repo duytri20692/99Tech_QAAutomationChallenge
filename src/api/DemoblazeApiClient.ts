@@ -3,12 +3,9 @@ import { randomUUID } from 'crypto';
 import { ApiCallResult, CartEntry, LoginResult, Product } from './types';
 
 /**
- * Thin typed wrapper around https://api.demoblaze.com.
- * Used for API tests, for performance sampling, and to set up test data
- * (e.g. registering users) much faster than through the UI.
- *
- * Note: the DemoBlaze front end base64-encodes passwords before sending them,
- * so the client does the same to behave exactly like the browser.
+ * Typed wrapper around https://api.demoblaze.com, used by API tests, perf
+ * sampling and fast test data setup (registering users).
+ * Passwords are base64-encoded, same as the DemoBlaze front end does.
  */
 export class DemoblazeApiClient {
   constructor(private readonly request: APIRequestContext) {}
@@ -26,10 +23,8 @@ export class DemoblazeApiClient {
   }
 
   /**
-   * Sends a request, repeating it once when the transport itself failed - a
-   * connection that never finished its TLS handshake delivered nothing, so a
-   * repeat cannot apply the same call twice. An answer from the server is
-   * final and is never retried, however bad it is.
+   * Retries once on a transport error (the request never reached the server).
+   * Any server response, even an error, is returned as-is.
    */
   private async send<T>(call: () => Promise<APIResponse>, attempts = 2): Promise<ApiCallResult<T>> {
     let lastError: unknown;
@@ -44,7 +39,6 @@ export class DemoblazeApiClient {
     throw lastError;
   }
 
-  /** `attempts` is added by `send`, which is the only caller that knows it. */
   private async toResult<T>(response: APIResponse, started: number): Promise<Omit<ApiCallResult<T>, 'attempts'>> {
     const durationMs = Math.round(performance.now() - started);
     const text = await response.text();
@@ -103,20 +97,13 @@ export class DemoblazeApiClient {
   }
 
   /**
-   * Registers a new user and fails loudly if the API rejects it.
-   *
-   * The public API stalls or drops a request now and then, and a dropped signup
-   * costs the whole test its user before it has started. The call is therefore
-   * repeated once. Usernames are generated per test, so "user already exists" on
-   * a repeat can only mean the first attempt did reach the server after all,
-   * which is the outcome that was wanted.
+   * Registers a new user, throws if the API rejects it.
+   * Usernames are unique per test, so "already exist" after a retry means the
+   * first attempt actually landed - that counts as success.
    */
   async registerUser(username: string, password: string): Promise<void> {
     const res = await this.signUp(username, password);
     const errorMessage = typeof res.data === 'object' ? res.data?.errorMessage : undefined;
-    // `send` already repeated a signup that failed in transport, and such a
-    // send may still have reached the server. "User already exists" after a
-    // repeat therefore means the first one landed, which is the wanted outcome.
     const landedEarlier = res.attempts > 1 && /already exist/i.test(errorMessage ?? '');
     if (res.status === 200 && (!errorMessage || landedEarlier)) return;
     throw new Error(`Could not register test user "${username}": ${res.status} ${JSON.stringify(res.data)}`);

@@ -46,11 +46,7 @@ export class OrderConfirmation {
     };
   }
 
-  /**
-   * Clicking OK dismisses the dialog. The app does not navigate away: its
-   * SweetAlert build never invokes the confirm callback that would redirect
-   * to the home page, so the browser stays on the cart page.
-   */
+  /** Dismisses the dialog. The app stays on cart.html (its SweetAlert never fires the redirect callback). */
   async confirm(): Promise<void> {
     await this.okButton.click();
     await expect(this.root).toBeHidden();

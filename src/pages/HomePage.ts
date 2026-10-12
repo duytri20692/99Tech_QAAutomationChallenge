@@ -24,15 +24,11 @@ export class HomePage extends BasePage {
   }
 
   async openProduct(title: string): Promise<void> {
-    // The caller may arrive on a page that reloaded after it was last checked -
-    // logging in reloads, for instance - so the product list is re-asserted
-    // here rather than assumed. A dropped /entries leaves it empty for good,
-    // which would otherwise surface as a click timing out on a missing link.
+    // The page may have reloaded since (e.g. after login) and /entries can drop,
+    // so re-check the product list and reload once if it's empty.
     await retryAfterReload(this.page, () => expect(this.productLink(title)).toBeVisible());
     await this.productLink(title).click();
-    // 'commit' rather than the default 'load': DemoBlaze pages stream an HLS
-    // video, so 'load' can take tens of seconds. The caller asserts the page
-    // content it actually depends on.
+    // 'commit', not 'load' - the HLS video delays the load event.
     await this.page.waitForURL(/prod\.html\?idp_=/, { waitUntil: 'commit' });
   }
 }

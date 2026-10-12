@@ -1,9 +1,6 @@
 import { Page, Request, Response } from '@playwright/test';
 
-/**
- * Thrown when a request the site will never retry failed before reaching the
- * server, so whatever was supposed to follow it can never happen.
- */
+/** A request failed before reaching the server, and the site won't retry it. */
 export class DroppedRequestError extends Error {
   constructor(readonly url: string) {
     super(`The request never completed, so nothing can follow it (${url})`);
@@ -11,13 +8,7 @@ export class DroppedRequestError extends Error {
   }
 }
 
-/**
- * Watches for the first request matching `pattern` to fail.
- *
- * A failed request never reached the server, so the action behind it had no
- * effect and may safely be repeated. `stop()` drops the listener once the
- * outcome is known.
- */
+/** Resolves when a request matching `pattern` fails. Call `stop()` when done. */
 export function watchForDroppedRequest(
   page: Page,
   pattern: RegExp,
@@ -36,19 +27,15 @@ export function watchForDroppedRequest(
 export const isViewCartResponse = (response: Response): boolean => response.url().includes('/viewcart');
 
 /**
- * Registers a response waiter before the action that triggers it.
- *
- * The rejection is kept attached, so an action that fails before the response
- * arrives cannot turn the orphaned waiter into an unhandled rejection.
+ * Response waiter to register before the triggering action. The catch avoids
+ * an unhandled rejection if the action fails first.
+ * 20s: slow is still OK, but callers that retry pay it twice within the test timeout.
  */
 export function waitForResponse(
   page: Page,
   predicate: (response: Response) => boolean,
   timeout = 20_000,
 ): Promise<Response> {
-  // Explicit, and deliberately longer than the default: a slow response is
-  // still a success, and the callers that retry pay this budget twice, so it
-  // has to stay well inside the test timeout.
   const pending = page.waitForResponse(predicate, { timeout });
   pending.catch(() => {});
   return pending;

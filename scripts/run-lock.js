@@ -1,19 +1,9 @@
 /**
- * A single-run lock for the project.
+ * Single-run lock. Two runs share `reports/` and Playwright clears its output
+ * dir on start, so a second run deletes the first one's artifacts mid-run
+ * (shows up as `browserContext.close: ENOENT` and fake failures).
  *
- * Two runs of this suite share `reports/`, and every `playwright test` empties
- * its output directory when it starts. A second run therefore deletes the
- * artifacts of the first while it is still writing them, which surfaces as a
- * storm of `browserContext.close: ENOENT` failures plus timeouts from the two
- * suites competing for the machine - failures that look real and are not.
- *
- * The lock records the owning process id. A lock whose process is gone was left
- * behind by a run that was killed, and is taken over rather than respected, so
- * a crashed run never blocks the next one.
- *
- * It only guards runs of *this* project. A suite running in another checkout
- * has its own `reports/` and cannot corrupt this one, though it still competes
- * for CPU and will widen the slow tail that makes WebKit flaky.
+ * Stores the owner pid. If that process is gone (killed run), the lock is taken over.
  */
 const fs = require('fs');
 const path = require('path');
@@ -49,7 +39,7 @@ function acquire() {
         '',
         `Another run of this project is already in progress (pid ${held.pid}, started ${held.startedAt}).`,
         '',
-        'Two runs share reports/ and delete each other’s artifacts, which shows up as',
+        "Two runs share reports/ and delete each other's artifacts, which shows up as",
         'failures that are not real. Wait for it to finish, or stop it.',
         '',
         `If that process is gone, delete ${LOCK_FILE} and try again.`,

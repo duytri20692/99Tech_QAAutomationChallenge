@@ -16,11 +16,7 @@ export abstract class BasePage {
     await this.navigate(this.path);
   }
 
-  /**
-   * DemoBlaze fills its pages from an XHR that it never retries itself, so a
-   * request the backend drops leaves the page empty for good and waiting longer
-   * cannot help. The navigation is repeated once before giving up.
-   */
+  /** Page content comes from an XHR the site never retries, so navigate again once on failure. */
   protected async navigate(url: string, attempts = 2): Promise<void> {
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
@@ -33,10 +29,8 @@ export abstract class BasePage {
   }
 
   /**
-   * One navigation attempt. 'domcontentloaded' rather than the default 'load':
-   * DemoBlaze pages stream an HLS video, so the load event can take tens of
-   * seconds. waitUntilLoaded asserts the content the page actually needs.
-   * Override to register response waiters before the navigation starts.
+   * Uses 'domcontentloaded' - pages stream an HLS video, so 'load' can take tens
+   * of seconds. Override to register response waiters before navigating.
    */
   protected async loadOnce(url: string): Promise<void> {
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });

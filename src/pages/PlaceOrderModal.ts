@@ -23,19 +23,14 @@ export class PlaceOrderModal {
       month: page.locator('#month'),
       year: page.locator('#year'),
     };
-    // The modal header also carries a button named "Close" (the x), so the
-    // footer buttons are scoped to avoid an ambiguous locator.
+    // Header "x" is also named "Close", so scope to the footer.
     const footer = this.root.locator('.modal-footer');
     this.purchaseButton = footer.getByRole('button', { name: 'Purchase' });
     this.closeButton = footer.getByRole('button', { name: 'Close' });
     this.confirmation = new OrderConfirmation(page);
   }
 
-  /**
-   * The modal already counts as visible while its fade is still running, and
-   * Bootstrap focuses the modal root once that fade ends. Waiting for the focus
-   * to have landed means typing can no longer be interrupted by it.
-   */
+  /** Same as LoginModal: wait for Bootstrap's focus on the modal root before typing. */
   async waitUntilOpen(): Promise<void> {
     await expect(this.root).toBeVisible();
     await expect(this.root).toBeFocused();

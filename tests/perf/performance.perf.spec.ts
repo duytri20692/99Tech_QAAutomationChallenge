@@ -4,22 +4,11 @@ import { env } from '../../config/env';
 import { HomePage } from '../../src/pages/HomePage';
 
 /**
- * Lightweight performance checks that fit inside the functional pipeline.
- * They enforce budgets (configurable via env) and attach raw metrics to the report.
- * For load/stress testing, see "Extending to load testing" in the README.
+ * Lightweight performance budgets. Raw metrics are attached to the report.
  *
- * Two things keep these numbers meaningful on a shared public site:
- *
- *  - Each budget is asserted on a percentile of several samples, not on one
- *    measurement. One load in a handful is occasionally many times slower than
- *    the rest, and asserting on a single sample measures that noise.
- *  - Every sample runs in a fresh browser context. Reusing one page would serve
- *    every load after the first from the browser cache, where DOMContentLoaded
- *    drops to tens of milliseconds - a number that can never breach the budget,
- *    so the test would pass without checking anything.
- *
- * `npm test` also runs this project on its own, after every other stage, so the
- * numbers are not polluted by the suite's own load.
+ * - Budgets use a median/percentile of several samples; one slow load is noise.
+ * - Each sample uses a fresh context, otherwise later loads come from cache.
+ * - The perf project runs last, after the other projects (see playwright.config.ts).
  */
 const percentile = (values: number[], p: number): number =>
   [...values].sort((a, b) => a - b)[Math.ceil(values.length * p) - 1];
@@ -56,11 +45,8 @@ test.describe('Performance budgets', { tag: '@perf' }, () => {
       });
     });
 
-    // loadEventEnd stays 0 until the load event fires, and the framework never
-    // waits for it on this site because DemoBlaze streams an HLS video that can
-    // hold the event open for tens of seconds. A 0 here means "not measured",
-    // not "instant", so those samples are dropped instead of dragging the
-    // median down to a number that could never breach the budget.
+    // loadEventEnd is 0 if the load event hasn't fired yet (HLS video delays it).
+    // 0 means "not measured", so drop those samples from the median.
     const loadSamples = samples.map((s) => s.loadMs).filter((ms) => ms > 0);
     const timing = {
       samples,

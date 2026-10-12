@@ -2,7 +2,7 @@ import { test, expect } from '../../src/fixtures';
 import { Products } from '../../src/data/products';
 
 /**
- * Cart feature — see docs/DemoBlaze_Test_Cases.xlsx, sheet "Cart" (TC_CART_*).
+ * Cart feature - see docs/DemoBlaze_Test_Cases.xlsx, sheet "Cart" (TC_CART_*).
  * Every test that needs a user gets a freshly registered one, so carts never leak between tests.
  */
 test.describe('Cart', () => {
@@ -58,19 +58,24 @@ test.describe('Cart', () => {
     expect(total).toBe(expectedPrices.reduce((a, b) => a + b, 0));
   });
 
-  test('TC_CART_005 adding the same product twice creates two rows and doubles the total', { tag: '@regression' }, async ({
+  test('TC_CART_005 adding the same product twice should show a single row with quantity 2', { tag: ['@regression', '@known-defect'] }, async ({
     loggedInUser: _user,
     productPage,
     cartPage,
   }) => {
+    test.info().annotations.push({ type: 'issue', description: 'DEF-01: the same product added twice creates duplicate rows (no quantity)' });
+    // Expected to fail until DEF-01 is fixed; Playwright will flag it as "unexpectedly passed" once the app is fixed.
+    test.fail(true, 'Known defect DEF-01');
+
     await productPage.openById(Products.samsungGalaxyS6.id);
     const price = await productPage.getPrice();
     await productPage.addToCart();
     await productPage.addToCart();
 
     await cartPage.open();
-    await cartPage.expectItemCount(2);
+    // The total is right either way; the row count is where the defect shows.
     await expect(cartPage.total).toHaveText(String(price * 2));
+    await cartPage.expectItemCount(1);
   });
 
   test('TC_CART_009 a new user starts with an empty cart', { tag: '@regression' }, async ({ loggedInUser: _user, cartPage }) => {
