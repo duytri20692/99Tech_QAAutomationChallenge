@@ -23,7 +23,6 @@ export class PlaceOrderModal {
       month: page.locator('#month'),
       year: page.locator('#year'),
     };
-    // Header "x" is also named "Close", so scope to the footer.
     const footer = this.root.locator('.modal-footer');
     this.purchaseButton = footer.getByRole('button', { name: 'Purchase' });
     this.closeButton = footer.getByRole('button', { name: 'Close' });

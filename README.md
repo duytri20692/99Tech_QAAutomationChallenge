@@ -76,7 +76,7 @@ demoblaze-e2e/
 │   ├── fixtures/
 │   │   └── index.ts            # custom Playwright fixtures (pages, api, users)
 │   ├── data/                   # test data, products, expected messages
-│   └── utils/                  # alerts, form filling, network waits, reload-retry, price parsing
+│   └── utils/                  # retry, alerts, form filling, network waits, reload-retry, price parsing
 ├── tests/
 │   ├── ui/                     # login.spec.ts, cart.spec.ts, checkout.spec.ts (demo)
 │   ├── api/                    # auth.api.spec.ts, cart.api.spec.ts
@@ -112,7 +112,7 @@ tests  ->  fixtures  ->  page objects / components  ->  Playwright
 **Handling DemoBlaze specifics.**
 - Most results are native `alert()` dialogs fired after an XHR. `utils/dialog.ts` sets up the listener before the click and returns the alert text. If the XHR fails, it reports that instead of a plain timeout.
 - Bootstrap focuses the modal root when its fade ends, which can swallow a `fill()`. Modals wait for that focus, and `utils/form.ts` re-checks every value it fills.
-- Cart rows load asynchronously; assertions use Playwright's retrying `expect` instead of fixed sleeps.
+- Cart rows load asynchronously, one `POST /view` per row. `CartPage` counts rows only after every item from `/viewcart` has its row, so a half-rendered cart can't pass a count check. Only the rendering is retried, never the count.
 - The site never retries its own XHRs, so a dropped request leaves the page broken until reload. `utils/reload.ts` reloads once for the product list, welcome name and cart rows. Navigation, login, add to cart and user signup are retried once, but only when the request never reached the server, so nothing is applied twice.
 - The nav links are Bootstrap toggles, so a second click closes the modal. `NavBar` only clicks when the modal is closed (checked via the `show` class).
 - On mobile viewports the navbar collapses; `NavBar` opens the hamburger menu when needed, so the same tests run on desktop and mobile.

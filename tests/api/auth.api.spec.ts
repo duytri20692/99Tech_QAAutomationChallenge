@@ -26,7 +26,8 @@ test.describe('API: authentication', { tag: '@api' }, () => {
   });
 
   test('login with an unknown user is rejected', { tag: '@regression' }, async ({ api }) => {
-    const res = await api.login(`ghost_${Date.now()}`, 'whatever');
+    const ghost = newCredentials('ghost');
+    const res = await api.login(ghost.username, ghost.password);
     expect(res.data.token).toBeUndefined();
     expect(res.data.errorMessage).toBe(Messages.login.userDoesNotExist);
   });

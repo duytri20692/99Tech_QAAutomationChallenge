@@ -1,6 +1,7 @@
 import { APIRequestContext, APIResponse } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import { ApiCallResult, CartEntry, LoginResult, Product } from './types';
+import { retry } from '../utils/retry';
 
 /**
  * Typed wrapper around https://api.demoblaze.com, used by API tests, perf
@@ -27,16 +28,13 @@ export class DemoblazeApiClient {
    * Any server response, even an error, is returned as-is.
    */
   private async send<T>(call: () => Promise<APIResponse>, attempts = 2): Promise<ApiCallResult<T>> {
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      const started = performance.now();
-      try {
+    return retry(
+      async (attempt) => {
+        const started = performance.now();
         return { ...(await this.toResult<T>(await call(), started)), attempts: attempt };
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError;
+      },
+      { attempts },
+    );
   }
 
   private async toResult<T>(response: APIResponse, started: number): Promise<Omit<ApiCallResult<T>, 'attempts'>> {
@@ -75,10 +73,6 @@ export class DemoblazeApiClient {
 
   async getProduct(id: number): Promise<ApiCallResult<Product>> {
     return this.post('/view', { id: String(id) });
-  }
-
-  async getProductsByCategory(cat: 'phone' | 'notebook' | 'monitor'): Promise<ApiCallResult<{ Items: Product[] }>> {
-    return this.post('/bycat', { cat });
   }
 
   /** Adds a product to the cart of the user that owns the auth token. Returns the new cart entry id. */

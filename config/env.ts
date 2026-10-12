@@ -13,11 +13,10 @@ const envName = process.env.TEST_ENV ?? 'prod';
 dotenv.config({ path: path.resolve(__dirname, `../.env.${envName}`), quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 
-const toNumber = (value: string | undefined, fallback: number): number =>
-  value !== undefined && value.trim() !== '' && !Number.isNaN(Number(value)) ? Number(value) : fallback;
-
 const toOptionalNumber = (value: string | undefined): number | undefined =>
   value !== undefined && value.trim() !== '' && !Number.isNaN(Number(value)) ? Number(value) : undefined;
+
+const toNumber = (value: string | undefined, fallback: number): number => toOptionalNumber(value) ?? fallback;
 
 const toBoolean = (value: string | undefined, fallback: boolean): boolean =>
   value === undefined || value.trim() === '' ? fallback : ['true', '1', 'yes'].includes(value.toLowerCase());
@@ -56,7 +55,6 @@ export const env = {
     pageLoadBudgetMs: toNumber(process.env.PERF_PAGE_LOAD_BUDGET_MS, 8_000),
     apiBudgetMs: toNumber(process.env.PERF_API_BUDGET_MS, 3_000),
     apiSamples: toNumber(process.env.PERF_API_SAMPLES, 5),
-    // Page budgets are checked on the median, one slow load is just noise.
     pageSamples: toNumber(process.env.PERF_PAGE_SAMPLES, 3),
   },
 } as const;

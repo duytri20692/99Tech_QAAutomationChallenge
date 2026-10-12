@@ -1,6 +1,6 @@
 import { test, expect } from '../../src/fixtures';
 import { Messages } from '../../src/data/messages';
-import { Credentials, MaliciousInput, veryLongUsername } from '../../src/data/testData';
+import { Credentials, MaliciousInput, newCredentials, veryLongUsername } from '../../src/data/testData';
 
 /**
  * Login feature - see docs/DemoBlaze_Test_Cases.xlsx, sheet "Login" (TC_LOGIN_*).
@@ -66,7 +66,7 @@ test.describe('Login', () => {
     {
       id: 'TC_LOGIN_009',
       title: 'unregistered username',
-      credentials: () => ({ username: `ghost_${Date.now()}`, password: 'whatever123' }),
+      credentials: () => newCredentials('ghost'),
       expectedAlert: Messages.login.userDoesNotExist,
     },
     {

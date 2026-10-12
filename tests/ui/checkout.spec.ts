@@ -132,7 +132,6 @@ test.describe('Checkout', () => {
     cartPage,
   }) => {
     test.info().annotations.push({ type: 'issue', description: 'DEF-02: an empty cart can be purchased (Amount: 0 USD)' });
-    // Expected to fail until DEF-02 is fixed; Playwright will flag it as "unexpectedly passed" once the app is fixed.
     test.fail(true, 'Known defect DEF-02');
 
     await cartPage.open();

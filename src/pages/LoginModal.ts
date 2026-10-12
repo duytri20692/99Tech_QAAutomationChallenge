@@ -2,6 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { acceptNextDialog, watchForDialog } from '../utils/dialog';
 import { fillAndVerify } from '../utils/form';
 import { DroppedRequestError, watchForDroppedRequest } from '../utils/network';
+import { retry } from '../utils/retry';
 
 /** The XHR behind both the happy path and the rejection alert. */
 const LOGIN_REQUEST = /\/login$/;
@@ -48,17 +49,17 @@ export class LoginModal {
    */
   async login(username: string, password: string, attempts = 2): Promise<void> {
     await this.fill(username, password);
-    let lastDroppedUrl = '';
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      const outcome = await this.submitAndWaitForClose();
-      if (outcome.kind === 'closed') return;
-      // Server said no - retrying won't change that.
-      if (outcome.kind === 'rejected') {
-        throw new Error(`Login was rejected for "${username}": ${outcome.message}`);
-      }
-      lastDroppedUrl = outcome.url;
-    }
-    throw new DroppedRequestError(lastDroppedUrl);
+    await retry(
+      async () => {
+        const outcome = await this.submitAndWaitForClose();
+        if (outcome.kind === 'dropped') throw new DroppedRequestError(outcome.url);
+        if (outcome.kind === 'rejected') {
+          throw new Error(`Login was rejected for "${username}": ${outcome.message}`);
+        }
+      },
+      // Only a dropped request is retried. If the server said no, retrying won't change that.
+      { attempts, retryIf: (error) => error instanceof DroppedRequestError },
+    );
   }
 
   private async submitAndWaitForClose(): Promise<SubmitOutcome> {

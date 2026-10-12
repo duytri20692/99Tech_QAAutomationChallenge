@@ -25,6 +25,12 @@ type Fixtures = {
   loggedInUser: Credentials;
 };
 
+async function registerNewUser(api: DemoblazeApiClient): Promise<Credentials> {
+  const user = newCredentials();
+  await api.registerUser(user.username, user.password);
+  return user;
+}
+
 export const test = base.extend<Fixtures>({
   homePage: async ({ page }, use) => use(new HomePage(page)),
   loginModal: async ({ page }, use) => use(new LoginModal(page)),
@@ -38,21 +44,9 @@ export const test = base.extend<Fixtures>({
     await context.dispose();
   },
 
-  newUser: async ({ api }, use) => {
-    const user = newCredentials();
-    await api.registerUser(user.username, user.password);
-    await use(user);
-  },
+  newUser: async ({ api }, use) => use(await registerNewUser(api)),
 
-  validUser: async ({ api }, use) => {
-    if (env.staticUser) {
-      await use(env.staticUser);
-      return;
-    }
-    const user = newCredentials();
-    await api.registerUser(user.username, user.password);
-    await use(user);
-  },
+  validUser: async ({ api }, use) => use(env.staticUser ?? (await registerNewUser(api))),
 
   loggedInUser: async ({ newUser, homePage, loginModal }, use) => {
     await homePage.open();

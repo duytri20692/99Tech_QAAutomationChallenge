@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 import { NavBar } from '../components/NavBar';
+import { retry } from '../utils/retry';
 
 /** Shared behaviour for every page object: navigation + access to the nav bar. */
 export abstract class BasePage {
@@ -18,14 +19,7 @@ export abstract class BasePage {
 
   /** Page content comes from an XHR the site never retries, so navigate again once on failure. */
   protected async navigate(url: string, attempts = 2): Promise<void> {
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        await this.loadOnce(url);
-        return;
-      } catch (error) {
-        if (attempt === attempts) throw error;
-      }
-    }
+    await retry(() => this.loadOnce(url), { attempts });
   }
 
   /**

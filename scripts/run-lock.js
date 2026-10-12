@@ -64,4 +64,4 @@ function acquire() {
   }
 }
 
-module.exports = { acquire, LOCK_FILE };
+module.exports = { acquire };

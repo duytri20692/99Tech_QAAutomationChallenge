@@ -1,5 +1,6 @@
 import { test, expect } from '../../src/fixtures';
 import { Products } from '../../src/data/products';
+import { sum } from '../../src/utils/price';
 
 /**
  * Cart feature - see docs/DemoBlaze_Test_Cases.xlsx, sheet "Cart" (TC_CART_*).
@@ -55,7 +56,7 @@ test.describe('Cart', () => {
     await cartPage.open();
     await cartPage.expectItemCount(added.length);
     const total = await cartPage.expectTotalMatchesItems();
-    expect(total).toBe(expectedPrices.reduce((a, b) => a + b, 0));
+    expect(total).toBe(sum(expectedPrices));
   });
 
   test('TC_CART_005 adding the same product twice should show a single row with quantity 2', { tag: ['@regression', '@known-defect'] }, async ({
@@ -64,7 +65,6 @@ test.describe('Cart', () => {
     cartPage,
   }) => {
     test.info().annotations.push({ type: 'issue', description: 'DEF-01: the same product added twice creates duplicate rows (no quantity)' });
-    // Expected to fail until DEF-01 is fixed; Playwright will flag it as "unexpectedly passed" once the app is fixed.
     test.fail(true, 'Known defect DEF-01');
 
     await productPage.openById(Products.samsungGalaxyS6.id);

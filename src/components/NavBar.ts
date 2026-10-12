@@ -14,7 +14,6 @@ export class NavBar {
   readonly logoutLink: Locator;
   readonly welcomeUser: Locator;
   readonly loginDialog: Locator;
-  readonly signUpDialog: Locator;
 
   constructor(private readonly page: Page) {
     this.toggler = page.locator('button.navbar-toggler');
@@ -24,7 +23,6 @@ export class NavBar {
     this.logoutLink = page.locator('#logout2');
     this.welcomeUser = page.locator('#nameofuser');
     this.loginDialog = page.locator('#logInModal');
-    this.signUpDialog = page.locator('#signInModal');
   }
 
   private async ensureExpanded(target: Locator): Promise<void> {
@@ -56,9 +54,6 @@ export class NavBar {
     await this.openModal(this.loginLink, this.loginDialog);
   }
 
-  async openSignUp(): Promise<void> {
-    await this.openModal(this.signUpLink, this.signUpDialog);
-  }
 
   /** Waits for /viewcart; reloads once if it never arrives (site doesn't retry it). */
   async openCart(): Promise<void> {

@@ -6,7 +6,6 @@ export const Messages = {
     fillOutCredentials: 'Please fill out Username and Password.',
   },
   signUp: {
-    success: 'Sign up successful.',
     userAlreadyExists: 'This user already exist.',
   },
   cart: {

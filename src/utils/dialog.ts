@@ -1,5 +1,6 @@
 import { Dialog, Page, Request } from '@playwright/test';
 import { DroppedRequestError } from './network';
+import { retry } from './retry';
 
 /**
  * Accepts and reports an unexpected alert. Otherwise Playwright dismisses it
@@ -39,18 +40,10 @@ export async function acceptNextDialog(
   options: AcceptDialogOptions = {},
 ): Promise<string> {
   const { timeout = 15_000, triggeredBy } = options;
-  const attempts = triggeredBy ? 2 : 1;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      return await acceptOnce(page, trigger, timeout, triggeredBy);
-    } catch (error) {
-      lastError = error;
-      if (!(error instanceof DroppedRequestError)) break;
-    }
-  }
-  throw lastError;
+  return retry(() => acceptOnce(page, trigger, timeout, triggeredBy), {
+    attempts: triggeredBy ? 2 : 1,
+    retryIf: (error) => error instanceof DroppedRequestError,
+  });
 }
 
 async function acceptOnce(

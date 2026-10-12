@@ -14,12 +14,19 @@ export class CartPage extends BasePage {
   readonly rows: Locator;
   readonly total: Locator;
   readonly placeOrderButton: Locator;
+  /** Item count of the latest /viewcart response, i.e. how many rows the page will render. */
+  private viewCartItems?: Promise<number>;
 
   constructor(page: Page) {
     super(page, '/cart.html');
     this.rows = page.locator('#tbodyid > tr');
     this.total = page.locator('#totalp');
     this.placeOrderButton = page.getByRole('button', { name: 'Place Order' });
+    page.on('response', (response) => {
+      if (!isViewCartResponse(response)) return;
+      this.viewCartItems = response.json().then((body: { Items: unknown[] }) => body.Items.length);
+      this.viewCartItems.catch(() => {}); // a broken body fails waitForAllRows, not the process
+    });
   }
 
   /** Waits for /viewcart (renders the rows). Can't use 'networkidle', the HLS video never idles. */
@@ -38,11 +45,23 @@ export class CartPage extends BasePage {
   }
 
   /**
-   * Rows render once per page load, and /viewcart sometimes misses an item that
-   * was just added. Polling the DOM won't help, so reload once and re-check.
+   * Counts rows only once every /viewcart item has its row, so a half-rendered
+   * cart can't pass. Only the rendering is retried, never the count itself.
    */
   async expectItemCount(count: number): Promise<void> {
-    await retryAfterReload(this.page, () => expect(this.rows).toHaveCount(count));
+    await this.waitForAllRows();
+    expect(await this.rows.count(), 'cart rows').toBe(count);
+  }
+
+  /**
+   * Each row comes from its own POST /view, rendered as it arrives. The site
+   * never retries a dropped /view, so the row stays missing until a reload.
+   */
+  private async waitForAllRows(): Promise<void> {
+    await retryAfterReload(this.page, async () => {
+      if (!this.viewCartItems) throw new Error('The cart page has not received /viewcart yet');
+      await expect(this.rows).toHaveCount(await this.viewCartItems);
+    });
   }
 
   async getItems(): Promise<CartItem[]> {
@@ -70,13 +89,17 @@ export class CartPage extends BasePage {
   }
 
   /**
-   * Deletes one row and waits for the count to drop. The site reloads the page
-   * after the delete, so this can take a while; reload again if /viewcart is stale.
+   * Deletes one row and waits until /viewcart reports one item fewer. The site
+   * reloads the cart after the delete; reload again if that read is stale.
    */
   async deleteItem(title: string): Promise<void> {
+    await this.waitForAllRows();
     const before = await this.rows.count();
     await this.row(title).first().getByRole('link', { name: 'Delete' }).click();
-    await retryAfterReload(this.page, () => expect(this.rows).toHaveCount(before - 1, { timeout: 30_000 }));
+    await retryAfterReload(this.page, () =>
+      expect.poll(() => this.viewCartItems, { timeout: 30_000 }).toBe(before - 1),
+    );
+    await this.expectItemCount(before - 1);
   }
 
   async openPlaceOrder(): Promise<PlaceOrderModal> {
