@@ -36,8 +36,8 @@ export const env = {
   baseUrl: process.env.BASE_URL || 'https://www.demoblaze.com',
   apiUrl: process.env.API_URL || 'https://api.demoblaze.com',
   headless: toBoolean(process.env.HEADLESS, true),
-  // WebKit on Windows gets flaky at 8 workers (mobile-safari p99 41.5s vs
-  // p90 21s over 5 runs) and is stable at 6. Capped by half the cores.
+  // WebKit on Windows got flaky at 8 workers in local runs and was stable
+  // at 6. Capped by half the cores.
   workers: toOptionalNumber(process.env.WORKERS) ?? (isCI ? 2 : Math.max(1, Math.min(6, Math.floor(cpus().length / 2)))),
   // Public demo site, requests are sometimes just slow. Retried tests still show as "flaky".
   retries: toNumber(process.env.RETRIES, isCI ? 2 : 1),

@@ -8,7 +8,7 @@ import { HomePage } from '../../src/pages/HomePage';
  *
  * - Budgets use a median/percentile of several samples; one slow load is noise.
  * - Each sample uses a fresh context, otherwise later loads come from cache.
- * - The perf project runs last, after the other projects (see playwright.config.ts).
+ * - Runs on its own, not next to the UI tests (see playwright.config.ts).
  */
 const percentile = (values: number[], p: number): number =>
   [...values].sort((a, b) => a - b)[Math.ceil(values.length * p) - 1];

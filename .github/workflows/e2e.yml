@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '0 1 * * *' # nightly full regression + perf
+    - cron: '0 1 * * *' # nightly full regression
   workflow_dispatch:
     inputs:
       grep:
@@ -85,7 +85,6 @@ jobs:
 
   perf:
     name: Performance budgets
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -96,8 +95,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # Browsers have their own jobs; without --no-deps perf would rerun them all here.
-      - run: npx playwright test --project=perf --no-deps
+      - run: npx playwright test --project=perf
       - uses: actions/upload-artifact@v4
         if: always()
         with:

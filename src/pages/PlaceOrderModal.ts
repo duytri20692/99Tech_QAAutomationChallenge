@@ -3,6 +3,7 @@ import { OrderDetails } from '../data/testData';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { acceptNextDialog } from '../utils/dialog';
 import { fillAndVerify } from '../utils/form';
+import { waitForResponse } from '../utils/network';
 
 export class PlaceOrderModal {
   readonly root: Locator;
@@ -43,10 +44,16 @@ export class PlaceOrderModal {
     }
   }
 
-  /** Happy path: purchase and return the confirmation dialog. */
+  /**
+   * Happy path: purchase and return the confirmation dialog. Purchase also fires
+   * POST /deletecart without waiting for it, and leaving the page cancels it, so
+   * wait for it here or the cart is never emptied.
+   */
   async purchase(): Promise<OrderConfirmation> {
+    const cartCleared = waitForResponse(this.page, (response) => response.url().includes('/deletecart'));
     await this.purchaseButton.click();
     await this.confirmation.expectVisible();
+    expect((await cartCleared).ok(), 'POST /deletecart succeeded').toBe(true);
     return this.confirmation;
   }
 

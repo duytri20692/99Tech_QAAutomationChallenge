@@ -1,12 +1,12 @@
 # DemoBlaze E2E Automation Framework
 
-Playwright + TypeScript framework for **https://www.demoblaze.com**, covering the **Login** and **Cart / Place Order** features with UI, API, regression and performance tests, cross-browser and mobile execution, CI/CD pipelines and multi-format reporting.
+Playwright + TypeScript framework for **https://www.demoblaze.com**, covering the **Login** and **Cart / Place Order** features with UI, API, regression and performance tests, cross-browser and mobile execution, a CI pipeline, and HTML and JUnit reports.
 
 | Deliverable | Location |
 |---|---|
 | Test case suite (63 cases: Login 29, Cart 34) | [`docs/DemoBlaze_Test_Cases.xlsx`](docs/DemoBlaze_Test_Cases.xlsx) |
 | Framework + demo scripts | this repository |
-| CI/CD | [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml), [`Jenkinsfile`](Jenkinsfile) |
+| CI/CD | [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml) |
 
 > Built with help from AI coding tools for some parts. Test design, debugging decisions and final review are mine.
 
@@ -14,7 +14,7 @@ Playwright + TypeScript framework for **https://www.demoblaze.com**, covering th
 
 ## 1. Quick start
 
-**Prerequisites:** Node.js 20+ and Git. (Java is only needed if you want to view the Allure report.)
+**Prerequisites:** Node.js 20+ and Git.
 
 ```bash
 git clone <this-repo-url>
@@ -25,8 +25,11 @@ npx playwright install --with-deps      # downloads Chromium, Firefox and WebKit
 # Run the demo scenario (login -> add to cart -> place order) in a visible browser
 npm run test:demo
 
-# Run everything (all browsers, mobile, API, perf) in one run
+# Run all functional tests (all browsers, mobile, API)
 npm test
+
+# Run the performance budgets on their own
+npm run test:perf
 
 # Open the HTML report
 npm run report
@@ -44,11 +47,10 @@ No account setup is needed: each test registers its own unique user through the 
 | `npm run test:ui` | Desktop UI tests on Chromium, Firefox, WebKit |
 | `npm run test:mobile` | UI tests on Pixel 7 and iPhone 14 emulation |
 | `npm run test:api` | REST API tests (no browser) |
-| `npm run test:perf` | Performance budget checks, on their own (`--no-deps`) |
+| `npm run test:perf` | Performance budget checks, on their own |
 | `npm run test:headed` / `test:debug` | Headed / step-through debugging on Chromium |
 | `npx playwright test --project=firefox --grep @smoke` | Any project × tag combination |
 | `npm run report` | Open the HTML report |
-| `npm run allure:generate && npm run allure:open` | Build and open the Allure report |
 | `npm run typecheck` | TypeScript compile check |
 
 ---
@@ -61,7 +63,7 @@ demoblaze-e2e/
 │   └── env.ts                  # typed configuration from env vars / .env files
 ├── src/
 │   ├── api/
-│   │   ├── DemoblazeApiClient.ts   # typed REST client (signup, login, entries, cart…)
+│   │   ├── DemoblazeApiClient.ts   # typed REST client (signup, login, entries, cart...)
 │   │   └── types.ts
 │   ├── components/
 │   │   ├── NavBar.ts           # shared navbar, handles the collapsed mobile menu
@@ -84,7 +86,6 @@ demoblaze-e2e/
 ├── docs/DemoBlaze_Test_Cases.xlsx
 ├── playwright.config.ts        # projects, reporters, retries, artifacts
 ├── .github/workflows/e2e.yml   # GitHub Actions
-├── Jenkinsfile                 # Jenkins pipeline
 └── .env.example
 ```
 
@@ -99,15 +100,13 @@ tests  ->  fixtures  ->  page objects / components  ->  Playwright
                     \->  API client                  ->  api.demoblaze.com
 ```
 
-**Custom fixtures instead of `beforeEach` boilerplate.** Tests just declare what they need, e.g. `async ({ loggedInUser, productPage, cartPage }) => …`. The `newUser` fixture registers a fresh user through the API (fast), and `loggedInUser` logs that user in through the UI.
+**Custom fixtures instead of `beforeEach` boilerplate.** Tests just declare what they need, e.g. `async ({ loggedInUser, productPage, cartPage }) => ...`. The `newUser` fixture registers a fresh user through the API (fast), and `loggedInUser` logs that user in through the UI.
 
 **Test isolation.** Every cart test gets its own freshly registered user, so carts never leak between tests and tests can run fully in parallel and in any order.
 
-**One run, perf last.** Everything runs in one `playwright test` run with one report. The `perf` project depends on all other projects, so it runs at the end on its own and the suite's load doesn't skew the numbers (details in [playwright.config.ts](playwright.config.ts)). If a functional project fails, perf is skipped. `npm run test:perf` runs perf alone; filtered runs like `npm test -- --grep @smoke` skip the dependency ([scripts/run.js](scripts/run.js)).
+**Perf runs on its own.** Next to the UI tests, the suite's load skews the numbers (a page load hit 15.8s against an 8s budget). So `npm test` leaves perf out, `npm run test:perf` runs it alone, and CI gives it its own job.
 
 **6 workers by default.** WebKit on Windows gets flaky above that (see [config/env.ts](config/env.ts)). `WORKERS` overrides it.
-
-**`npm test` uses a single-run lock** ([scripts/run-lock.js](scripts/run-lock.js)), so two runs can't delete each other's files in `reports/`. A lock left by a killed run is taken over automatically.
 
 **Handling DemoBlaze specifics.**
 - Most results are native `alert()` dialogs fired after an XHR. `utils/dialog.ts` sets up the listener before the click and returns the alert text. If the XHR fails, it reports that instead of a plain timeout.
@@ -163,7 +162,7 @@ All settings are optional. Copy `.env.example` to `.env`, or pass them as enviro
 |---|---|---|
 | `BASE_URL` | `https://www.demoblaze.com` | Web app URL |
 | `API_URL` | `https://api.demoblaze.com` | REST API URL |
-| `TEST_USERNAME` / `TEST_PASSWORD` | – | Use a fixed account for login tests; otherwise users are auto-registered |
+| `TEST_USERNAME` / `TEST_PASSWORD` | - | Use a fixed account for login tests; otherwise users are auto-registered |
 | `HEADLESS` | `true` | Run browsers headless |
 | `WORKERS` | 6 local (capped by half the cores) / 2 CI | Parallel workers. WebKit degrades sharply above this on Windows |
 | `RETRIES` | 1 local / 2 CI | Retries for flaky network conditions; a retried test is still reported as `flaky` |
@@ -183,8 +182,6 @@ Every run produces:
 
 - **HTML report**: `reports/html`, with traces and screenshots on failure, plus videos when `VIDEO` is enabled (`npm run report`).
 - **JUnit XML**: `reports/junit/results.xml`, for Jenkins, GitLab and Azure DevOps test tabs.
-- **JSON**: `reports/json/results.json`, for dashboards and custom tooling.
-- **Allure**: `reports/allure-results`, with steps, attachments and annotations.
 - On CI, inline GitHub annotations via the `github` reporter.
 
 ---
@@ -192,12 +189,10 @@ Every run produces:
 ## 7. CI/CD
 
 **GitHub Actions** (`.github/workflows/e2e.yml`):
-- **Pull requests** run `@smoke`. **Pushes to `main`** run everything. A **nightly schedule** runs the full regression plus the perf job.
-- An API job runs alongside a UI matrix of `chromium`, `firefox`, `webkit`, `mobile-chrome` and `mobile-safari`, with `fail-fast: false`.
+- **Pull requests** run `@smoke`. **Pushes to `main`** run everything. A **nightly schedule** runs the full regression.
+- An API job and a perf job run alongside a UI matrix of `chromium`, `firefox`, `webkit`, `mobile-chrome` and `mobile-safari`, with `fail-fast: false`. The perf job runs on every trigger, PRs included.
 - **Manual runs** (`workflow_dispatch`) accept a tag filter and a base URL.
 - Reports are uploaded as artifacts per project. Optional `TEST_USERNAME` / `TEST_PASSWORD` repository secrets are picked up automatically.
-
-**Jenkins** (`Jenkinsfile`) runs inside the official Playwright Docker image, with parameters for project, tag and URL, a nightly cron, and JUnit plus HTML report publishing.
 
 ---
 

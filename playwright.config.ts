@@ -24,8 +24,6 @@ export default defineConfig({
     [env.isCI ? 'github' : 'list'],
     ['html', { open: 'never', outputFolder: 'reports/html' }],
     ['junit', { outputFile: 'reports/junit/results.xml' }],
-    ['json', { outputFile: 'reports/json/results.json' }],
-    ['allure-playwright', { resultsDir: 'reports/allure-results', detail: true, suiteTitle: true }],
   ],
   use: {
     baseURL: env.baseUrl,
@@ -43,16 +41,8 @@ export default defineConfig({
     { name: 'mobile-chrome', testDir: './tests/ui', use: { ...devices['Pixel 7'] } },
     { name: 'mobile-safari', testDir: './tests/ui', use: { ...devices['iPhone 14'] } },
     { name: 'api', testDir: './tests/api', use: { baseURL: env.apiUrl } },
-    // Depends on the other projects so a full local run measures perf last,
-    // with nothing competing (a page load hit 15.8s vs an 8s budget when run
-    // alongside the UI tests); a failed dependency skips perf. Runs that
-    // select a subset pass --no-deps, as does CI, where perf has its own job.
-    {
-      name: 'perf',
-      testDir: './tests/perf',
-      use: { ...devices['Desktop Chrome'] },
-      retries: 0,
-      dependencies: ['chromium', 'firefox', 'webkit', 'mobile-chrome', 'mobile-safari', 'api'],
-    },
+    // Run on its own (`npm run test:perf`, its own CI job): next to the UI
+    // tests a page load hit 15.8s vs an 8s budget. `npm test` leaves it out.
+    { name: 'perf', testDir: './tests/perf', use: { ...devices['Desktop Chrome'] }, retries: 0 },
   ],
 });
