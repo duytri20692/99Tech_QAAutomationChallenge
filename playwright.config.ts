@@ -43,9 +43,10 @@ export default defineConfig({
     { name: 'mobile-chrome', testDir: './tests/ui', use: { ...devices['Pixel 7'] } },
     { name: 'mobile-safari', testDir: './tests/ui', use: { ...devices['iPhone 14'] } },
     { name: 'api', testDir: './tests/api', use: { baseURL: env.apiUrl } },
-    // Runs last so the suite's own load doesn't skew the numbers (a page
-    // load hit 15.8s vs an 8s budget when it ran alongside the UI tests).
-    // If a dependency fails, perf is skipped. `npm run test:perf` runs it alone.
+    // Depends on the other projects so a full local run measures perf last,
+    // with nothing competing (a page load hit 15.8s vs an 8s budget when run
+    // alongside the UI tests); a failed dependency skips perf. Runs that
+    // select a subset pass --no-deps, as does CI, where perf has its own job.
     {
       name: 'perf',
       testDir: './tests/perf',

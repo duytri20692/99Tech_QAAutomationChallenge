@@ -40,7 +40,9 @@ pipeline {
         script {
           def projectArg = params.PROJECT == 'all' ? '' : "--project=${params.PROJECT}"
           def grepArg = params.GREP?.trim() ? "--grep \"${params.GREP}\"" : ''
-          sh "npx playwright test ${projectArg} ${grepArg}"
+          // perf depends on every other project; when picked alone, run only perf
+          def depsArg = params.PROJECT == 'perf' ? '--no-deps' : ''
+          sh "npx playwright test ${projectArg} ${depsArg} ${grepArg}"
         }
       }
     }
