@@ -5,7 +5,7 @@ import { validOrder } from '../../src/data/testData';
 
 /**
  * DEMO SCENARIO: log in with valid credentials -> add to cart -> place order.
- * Plus the order-form edge cases (TC_CART_019+ in the test case workbook).
+ * Plus the order-form edge cases (TC_CART_021 to TC_CART_030 in the test case workbook).
  */
 test.describe('Checkout', () => {
   test('TC_CART_020 E2E: logged-in user adds a product to the cart and places an order', { tag: ['@smoke', '@regression'] }, async ({
@@ -58,7 +58,7 @@ test.describe('Checkout', () => {
       await confirmation.confirm();
     });
 
-    await test.step('Cart is emptied after the purchase', async () => {
+    await test.step('Cart is emptied after the purchase (TC_CART_025)', async () => {
       await cartPage.open();
       await cartPage.expectItemCount(0);
     });

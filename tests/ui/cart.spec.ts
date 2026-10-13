@@ -7,7 +7,7 @@ import { sum } from '../../src/utils/price';
  * Every test that needs a user gets a freshly registered one, so carts never leak between tests.
  */
 test.describe('Cart', () => {
-  test('TC_CART_001 guest can add a product and see it in the cart', { tag: ['@smoke', '@regression'] }, async ({
+  test('TC_CART_001 TC_CART_003 guest can add a product and the cart row matches the product page', { tag: ['@smoke', '@regression'] }, async ({
     homePage,
     productPage,
     cartPage,
@@ -22,10 +22,12 @@ test.describe('Cart', () => {
     await cartPage.open();
     await cartPage.expectItemCount(1);
     expect(await cartPage.getItems()).toEqual([{ title: Products.samsungGalaxyS6.title, price }]);
+    await cartPage.expectRow(Products.samsungGalaxyS6.title, price);
     await cartPage.expectTotalMatchesItems();
   });
 
-  test('TC_CART_002 product opened from the home page can be added by a logged-in user', { tag: '@regression' }, async ({
+  test('TC_CART_002 TC_CART_008 product opened from the home page can be added and the cart opened from the navbar', { tag: '@regression' }, async ({
+    page,
     loggedInUser: _user,
     homePage,
     productPage,
@@ -36,6 +38,10 @@ test.describe('Cart', () => {
     await productPage.addToCart();
 
     await homePage.nav.openCart();
+    await expect(page).toHaveURL(/cart\.html/);
+    await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Total' })).toBeVisible();
+    await expect(cartPage.placeOrderButton).toBeVisible();
     await cartPage.expectItemCount(1);
     await expect(cartPage.row(Products.nokiaLumia1520.title)).toBeVisible();
   });

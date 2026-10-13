@@ -4,6 +4,7 @@ import { Credentials, MaliciousInput, newCredentials, veryLongUsername } from '.
 
 /**
  * Login feature - see docs/DemoBlaze_Test_Cases.xlsx, sheet "Login" (TC_LOGIN_*).
+ * Runs on every desktop and mobile project, which covers TC_LOGIN_029.
  */
 test.describe('Login', () => {
   test.beforeEach(async ({ homePage }) => {

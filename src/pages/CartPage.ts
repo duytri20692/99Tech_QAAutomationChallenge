@@ -76,6 +76,19 @@ export class CartPage extends BasePage {
     return items;
   }
 
+  /** Row layout: a loaded picture, the title, the price without "$" and a Delete link. */
+  async expectRow(title: string, price: number): Promise<void> {
+    const cells = this.row(title).locator('td');
+    const picture = cells.nth(0).locator('img');
+    await expect(picture).toBeVisible();
+    await expect
+      .poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth), { message: 'cart row picture loaded' })
+      .toBeGreaterThan(0);
+    await expect(cells.nth(1)).toHaveText(title);
+    await expect(cells.nth(2)).toHaveText(String(price));
+    await expect(cells.nth(3).getByRole('link', { name: 'Delete' })).toBeVisible();
+  }
+
   async getTotal(): Promise<number> {
     const text = (await this.total.innerText()).trim();
     return text === '' ? 0 : parseAmount(text);
